@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  arpem-api
+
+Globals:
+  Function:
+    Timeout: 5
+    Runtime: python3.13
+    Architectures:
+      - x86_64
+
+Resources:
+  GenerateUploadLinkFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../../backend/upload/
+      Handler: app.lambda_handler
+      Events:
+        UploadApi:
+          Type: Api
+          Properties:
+            Path: /generate-upload-url
+            Method: post
+      Policies:
+        - S3CrudPolicy:
+            BucketName: arpem-evidence-bucket
+      Environment:
+        Variables:
+          BUCKET_NAME: arpem-evidence-bucket
+
+      VpcConfig:
+        SubnetIds:
+          - subnet-0d85d2cf164025957
+        SecurityGroupIds:
+          - sg-08e0f2a7c4ffb1e0f
+
+  EvidenceBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: arpem-evidence-bucket
+
+Outputs:
+  GenerateUploadLinkApiUrl:
+    Description: "API Gateway endpoint URL for /generate-upload-url"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/generate-upload-url"
+
+  GenerateUploadLinkFunctionArn:
+    Description: "ARN of the generate upload Lambda function"
+    Value: !GetAtt GenerateUploadLinkFunction.Arn
