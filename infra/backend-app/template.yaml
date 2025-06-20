@@ -11,6 +11,24 @@ Globals:
       - x86_64
 
 Resources:
+  SubmitIncidentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../../backend/submit_incident/
+      Handler: app.lambda_handler
+      Events:
+        SubmitIncidentApi:
+          Type: Api
+          Properties:
+            Path: /submit-incident
+            Method: post
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: IncidentsTable
+      Environment:
+        Variables:
+          INCIDENTS_TABLE: IncidentsTable
+
   GenerateUploadLinkFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -28,7 +46,6 @@ Resources:
       Environment:
         Variables:
           BUCKET_NAME: arpem-evidence-bucket
-
       VpcConfig:
         SubnetIds:
           - subnet-0d85d2cf164025957
@@ -40,6 +57,18 @@ Resources:
     Properties:
       BucketName: arpem-evidence-bucket
 
+  IncidentsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: IncidentsTable
+      AttributeDefinitions:
+        - AttributeName: incidentId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: incidentId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
 Outputs:
   GenerateUploadLinkApiUrl:
     Description: "API Gateway endpoint URL for /generate-upload-url"
@@ -48,3 +77,7 @@ Outputs:
   GenerateUploadLinkFunctionArn:
     Description: "ARN of the generate upload Lambda function"
     Value: !GetAtt GenerateUploadLinkFunction.Arn
+
+  SubmitIncidentApiUrl:
+    Description: "API Gateway endpoint URL for /submit-incident"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/submit-incident"
