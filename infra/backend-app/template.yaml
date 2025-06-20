@@ -11,6 +11,24 @@ Globals:
       - x86_64
 
 Resources:
+  GetIncidentStatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../../backend/get_incident_status/
+      Handler: app.lambda_handler
+      Events:
+        GetIncidentStatusApi:
+          Type: Api
+          Properties:
+            Path: /get-incident-status
+            Method: get
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: IncidentsTable
+      Environment:
+        Variables:
+          INCIDENTS_TABLE: IncidentsTable
+
   SubmitIncidentFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -81,3 +99,7 @@ Outputs:
   SubmitIncidentApiUrl:
     Description: "API Gateway endpoint URL for /submit-incident"
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/submit-incident"
+
+  GetIncidentStatusApiUrl:
+    Description: "API Gateway endpoint URL for /get-incident-status"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/get-incident-status"

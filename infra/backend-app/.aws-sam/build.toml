@@ -18,4 +18,13 @@ manifest_hash = ""
 packagetype = "Zip"
 functions = ["SubmitIncidentFunction"]
 
+[function_build_definitions.e6e42fd5-fb9e-42d4-a776-5d11f254b698]
+codeuri = "C:\\Users\\ryanj\\Documents\\astan-mvp\\backend\\get_incident_status"
+runtime = "python3.13"
+architecture = "x86_64"
+handler = "app.lambda_handler"
+manifest_hash = ""
+packagetype = "Zip"
+functions = ["GetIncidentStatusFunction"]
+
 [layer_build_definitions]
