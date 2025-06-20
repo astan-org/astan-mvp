@@ -1,7 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: >
-  arpem-api
+Description: arpem-api
 
 Globals:
   Function:
@@ -9,8 +8,44 @@ Globals:
     Runtime: python3.13
     Architectures:
       - x86_64
+  Api:
+    Auth:
+      DefaultAuthorizer: CognitoAuthorizer
+      AddDefaultAuthorizerToCorsPreflight: false
 
 Resources:
+
+  ArpemApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: arpem-api
+      StageName: Prod
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        AddDefaultAuthorizerToCorsPreflight: false
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: arn:aws:cognito-idp:us-east-1:936115794513:userpool/us-east-1_N8qJG9cXa
+
+  GetAllIncidentsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../../backend/get_all_incidents/
+      Handler: app.lambda_handler
+      Events:
+        GetAllIncidentsApi:
+          Type: Api
+          Properties:
+            Path: /get-all-incidents
+            Method: get
+            RestApiId: !Ref ArpemApi
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: IncidentsTable
+      Environment:
+        Variables:
+          INCIDENTS_TABLE: IncidentsTable
+
   GetIncidentStatusFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -22,6 +57,7 @@ Resources:
           Properties:
             Path: /get-incident-status
             Method: get
+            RestApiId: !Ref ArpemApi
       Policies:
         - DynamoDBReadPolicy:
             TableName: IncidentsTable
@@ -40,6 +76,9 @@ Resources:
           Properties:
             Path: /submit-incident
             Method: post
+            RestApiId: !Ref ArpemApi
+            Auth:
+              Authorizer: NONE
       Policies:
         - DynamoDBCrudPolicy:
             TableName: IncidentsTable
@@ -58,6 +97,9 @@ Resources:
           Properties:
             Path: /generate-upload-url
             Method: post
+            RestApiId: !Ref ArpemApi
+            Auth:
+              Authorizer: NONE
       Policies:
         - S3CrudPolicy:
             BucketName: arpem-evidence-bucket
@@ -90,7 +132,7 @@ Resources:
 Outputs:
   GenerateUploadLinkApiUrl:
     Description: "API Gateway endpoint URL for /generate-upload-url"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/generate-upload-url"
+    Value: !Sub "https://${ArpemApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/generate-upload-url"
 
   GenerateUploadLinkFunctionArn:
     Description: "ARN of the generate upload Lambda function"
@@ -98,8 +140,12 @@ Outputs:
 
   SubmitIncidentApiUrl:
     Description: "API Gateway endpoint URL for /submit-incident"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/submit-incident"
+    Value: !Sub "https://${ArpemApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/submit-incident"
 
   GetIncidentStatusApiUrl:
     Description: "API Gateway endpoint URL for /get-incident-status"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/get-incident-status"
+    Value: !Sub "https://${ArpemApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/get-incident-status"
+
+  GetAllIncidentsApiUrl:
+    Description: "API Gateway endpoint URL for /get-all-incidents"
+    Value: !Sub "https://${ArpemApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/get-all-incidents"
