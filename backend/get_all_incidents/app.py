@@ -6,21 +6,18 @@ dynamodb = boto3.resource("dynamodb")
 table = dynamodb.Table(os.environ["INCIDENTS_TABLE"])
 
 def lambda_handler(event, context):
-    # Get the user claims from the Cognito authorizer
     claims = event["requestContext"]["authorizer"]["claims"]
 
-    # Optional: log email or user info
     email = claims.get("email")
-    groups = claims.get("cognito:groups", [])
+    group_string = claims.get("cognito:groups", "")
+    groups = group_string.split(",") if group_string else []
 
-    # ✅ Enforce admin-only access
     if "admins" not in groups:
         return {
             "statusCode": 403,
             "body": json.dumps({"error": "Forbidden: Admins only"})
         }
 
-    # Scan and return all incidents
     response = table.scan()
     return {
         "statusCode": 200,

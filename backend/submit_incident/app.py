@@ -5,6 +5,78 @@ import os
 from datetime import datetime
 from urllib.parse import urlparse
 
+# Platform-specific field requirements based on type of request
+FIELD_REQUIREMENTS = {
+    "Hacked Account Take over": {
+        "Instagram": [
+            "accountUrl",
+            "usedTelcoAuth",
+            "emailUsedToCreate",
+            "newEmailUsed"
+        ],
+        "Messenger": [
+            "accountUrl",
+            "usedTelcoAuth",
+            "emailUsedToCreate",
+            "newEmailUsed"
+        ],
+        "Facebook": [
+            "accountUrl",
+            "usedTelcoAuth",
+            "emailUsedToCreate",
+            "newEmailUsed"
+        ],
+        "WhatsApp": [
+            "phoneNumber",
+            "usedTelcoAuth",
+            "emailUsedToCreate",
+            "newEmailUsed"
+        ]
+    },
+    "Impersonation": {
+        "Instagram": [
+            "realAccountUrl",
+            "fakeAccountUrls",
+            "proofOfRealAccount"
+        ],
+        "Messenger": [
+            "realAccountUrl",
+            "fakeAccountUrls",
+            "proofOfRealAccount"
+        ],
+        "Facebook": [
+            "realAccountUrl",
+            "fakeAccountUrls",
+            "proofOfRealAccount"
+        ],
+        "WhatsApp": [
+            "usedTelcoAuth"
+        ]
+    },
+    "Fraud/Scam": {
+        "Instagram": [
+            "victimAccountUrl",
+            "fraudEvidence",
+            "fraudsterIdentifier"
+        ],
+        "Messenger": [
+            "victimAccountUrl",
+            "fraudEvidence",
+            "fraudsterIdentifier"
+        ],
+        "Facebook": [
+            "victimAccountUrl",
+            "fraudEvidence",
+            "fraudsterIdentifier"
+        ],
+        "WhatsApp": [
+            "phoneNumber",
+            "fraudEvidence",
+            "fraudsterIdentifier"
+        ]
+    }
+}
+
 dynamodb = boto3.resource("dynamodb")
 table = dynamodb.Table(os.environ["INCIDENTS_TABLE"])
 
@@ -21,6 +93,10 @@ def extract_platforms(profile_urls):
                 platforms.append("Facebook")
             elif "tiktok.com" in netloc:
                 platforms.append("TikTok")
+            elif "messenger.com" in netloc:
+                platforms.append("Messenger")
+            elif "whatsapp.com" in netloc:
+                platforms.append("WhatsApp")
             else:
                 platforms.append("Other")
         except Exception:
@@ -31,6 +107,7 @@ def lambda_handler(event, context):
     try:
         body = json.loads(event.get('body', '{}'))
 
+        # Required general fields
         first_name = body.get("firstName")
         last_name = body.get("lastName")
         profile_urls = body.get("profileUrls")
@@ -39,17 +116,32 @@ def lambda_handler(event, context):
         if not (first_name and last_name and profile_urls and type_of_request):
             return {
                 "statusCode": 400,
-                "body": json.dumps({"error": "Missing required fields."})
+                "body": json.dumps({"error": "Missing required fields: firstName, lastName, profileUrls, or typeOfRequest."})
             }
 
-        # Optional fields
+        platforms = extract_platforms(profile_urls)
+        missing_fields = []
+
+        for platform in platforms:
+            required_fields = FIELD_REQUIREMENTS.get(type_of_request, {}).get(platform, [])
+            for field in required_fields:
+                if not body.get(field):
+                    missing_fields.append(f"{field} (required for {platform})")
+
+        if missing_fields:
+            return {
+                "statusCode": 400,
+                "body": json.dumps({
+                    "error": "Missing required platform-specific fields.",
+                    "missingFields": missing_fields
+                })
+            }
+
         alias = body.get("alias", "")
         description = body.get("description", "")
         evidence_urls = body.get("evidenceUrls", [])
-
-        incident_id = str(uuid.uuid4())
-        platforms = extract_platforms(profile_urls)
         timestamp = datetime.utcnow().isoformat()
+        incident_id = str(uuid.uuid4())
 
         item = {
             "incidentId": incident_id,
@@ -64,6 +156,11 @@ def lambda_handler(event, context):
             "timestamp": timestamp,
             "status": "pending"
         }
+
+        # Add dynamic fields
+        for key in body:
+            if key not in item:
+                item[key] = body[key]
 
         table.put_item(Item=item)
 
