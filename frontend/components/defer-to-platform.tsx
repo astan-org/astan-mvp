@@ -10,11 +10,10 @@ interface DeferToPlatformProps {
 
 export default function DeferToPlatform({ onGoBack }: DeferToPlatformProps) {
   const platformChannels = [
-    { name: "Instagram", url: "https://help.instagram.com/contact/1652567838289083" },
-    { name: "Facebook", url: "https://www.facebook.com/help/contact/260749603972907" },
-    { name: "Twitter", url: "https://help.twitter.com/en/forms/account-and-profile" },
-    { name: "LinkedIn", url: "https://www.linkedin.com/help/linkedin/answer/62931" },
-    { name: "TikTok", url: "https://www.tiktok.com/legal/report/feedback" },
+    { name: "Instagram", url: "https://help.instagram.com/149494825257596" },
+    { name: "Facebook", url: "https://www.facebook.com/help/203305893040179/" },
+    { name: "WhatsApp", url: "https://faq.whatsapp.com/1131652977717250" },
+    { name: "Messenger", url: "https://www.facebook.com/help/messenger-app/1216349518398524/" },
   ]
 
   return (

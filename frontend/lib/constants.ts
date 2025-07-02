@@ -6,14 +6,7 @@ export const ALL_PLATFORMS_SELECT = [
   "Instagram",
   "Facebook",
   "Messenger",
-  "WhatsApp",
-  "Twitter",
-  "LinkedIn",
-  "Reddit",
-  "Tumblr",
-  "WeChat",
-  "TikTok",
-  "Other",
+  "WhatsApp"
 ] as const
 export const INCIDENT_CLASSIFICATIONS = [
   "Sale of illegal goods",

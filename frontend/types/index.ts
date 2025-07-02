@@ -11,14 +11,7 @@ export const ALL_PLATFORMS_SELECT_VALUES = [
   "Instagram",
   "Facebook",
   "Messenger",
-  "WhatsApp",
-  "Twitter",
-  "LinkedIn",
-  "Reddit",
-  "Tumblr",
-  "WeChat",
-  "TikTok",
-  "Other",
+  "WhatsApp"
 ] as const
 export type PlatformSelect = (typeof ALL_PLATFORMS_SELECT_VALUES)[number]
 

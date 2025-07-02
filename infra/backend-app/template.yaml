@@ -8,10 +8,10 @@ Globals:
     Runtime: python3.13
     Architectures:
       - x86_64
-  Api:
-    Auth:
-      DefaultAuthorizer: CognitoAuthorizer
-      AddDefaultAuthorizerToCorsPreflight: false
+    Environment:
+      Variables:
+        INCIDENTS_TABLE: !Ref IncidentsTable
+        PYTHONPATH: /var/task/src
 
 Resources:
 
@@ -23,9 +23,28 @@ Resources:
       Auth:
         DefaultAuthorizer: CognitoAuthorizer
         AddDefaultAuthorizerToCorsPreflight: false
-        Authorizers:
-          CognitoAuthorizer:
-            UserPoolArn: arn:aws:cognito-idp:us-east-1:936115794513:userpool/us-east-1_N8qJG9cXa
+        # Authorizers:
+        #   CognitoAuthorizer:
+        #     UserPoolArn: arn:aws:cognito-idp:us-east-1:936115794513:userpool/us-east-1_N8qJG9cXa
+
+  CreateIncident:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/incidents_create.handler
+      CodeUri: ../../backend
+      MemorySize: 256
+      Timeout: 15
+      Events:
+        CreateIncidentApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ArpemApi
+            Path: /incidents
+            Method: post
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref IncidentsTable
+
 
   GetAllIncidentsFunction:
     Type: AWS::Serverless::Function
@@ -60,27 +79,6 @@ Resources:
             RestApiId: !Ref ArpemApi
       Policies:
         - DynamoDBReadPolicy:
-            TableName: IncidentsTable
-      Environment:
-        Variables:
-          INCIDENTS_TABLE: IncidentsTable
-
-  SubmitIncidentFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ../../backend/submit_incident/
-      Handler: app.lambda_handler
-      Events:
-        SubmitIncidentApi:
-          Type: Api
-          Properties:
-            Path: /submit-incident
-            Method: post
-            RestApiId: !Ref ArpemApi
-            Auth:
-              Authorizer: NONE
-      Policies:
-        - DynamoDBCrudPolicy:
             TableName: IncidentsTable
       Environment:
         Variables:
@@ -138,10 +136,6 @@ Outputs:
     Description: "ARN of the generate upload Lambda function"
     Value: !GetAtt GenerateUploadLinkFunction.Arn
 
-  SubmitIncidentApiUrl:
-    Description: "API Gateway endpoint URL for /submit-incident"
-    Value: !Sub "https://${ArpemApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/submit-incident"
-
   GetIncidentStatusApiUrl:
     Description: "API Gateway endpoint URL for /get-incident-status"
     Value: !Sub "https://${ArpemApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/get-incident-status"
@@ -149,3 +143,7 @@ Outputs:
   GetAllIncidentsApiUrl:
     Description: "API Gateway endpoint URL for /get-all-incidents"
     Value: !Sub "https://${ArpemApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/get-all-incidents"
+
+  CreateIncidentApiUrl:
+    Description: "API Gateway endpoint URL for POST /incidents"
+    Value: !Sub "https://${ArpemApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/incidents"

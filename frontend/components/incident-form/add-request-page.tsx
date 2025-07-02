@@ -683,29 +683,6 @@ export default function AddRequestPage({ onSubmitAccountInfo, onDeferToPlatform,
                 />
               </div>
 
-              <div className="space-y-3">
-                <Label className="text-sm font-medium text-gray-700">
-                  Secondary Incident Classification (Optional)
-                </Label>
-                <ToggleGroup
-                  type="single"
-                  variant="outline"
-                  value={formData.incidentClassification}
-                  onValueChange={handleIncidentClassificationChange}
-                  className="flex flex-wrap gap-2 justify-start"
-                >
-                  {INCIDENT_CLASSIFICATIONS.map((type) => (
-                    <ToggleGroupItem
-                      key={type}
-                      value={type}
-                      aria-label={type}
-                      className="text-xs px-4 py-2 h-auto border-gray-300 data-[state=on]:bg-blue-600 data-[state=on]:text-white"
-                    >
-                      {type}
-                    </ToggleGroupItem>
-                  ))}
-                </ToggleGroup>
-              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
