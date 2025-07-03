@@ -185,7 +185,7 @@ export default function AddRequestPage({ onSubmitAccountInfo, onDeferToPlatform,
 
     for (const field of requiredFields) {
       if (!formData[field]) {
-        let label = field.replace(/([A-Z])/g, " $1").trim()
+        let label = (field as string).replace(/([A-Z])/g, " $1").trim()
         label = label.charAt(0).toUpperCase() + label.slice(1)
         if (field === "primaryHarmType") label = "Primary Harm Type"
         if (field === "violationReason") label = "Why is this a violation?"

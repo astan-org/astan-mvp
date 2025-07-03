@@ -6,27 +6,31 @@ Globals:
   Function:
     Timeout: 5
     Runtime: python3.13
-    Architectures:
-      - x86_64
+    Architectures: [x86_64]
     Environment:
       Variables:
         INCIDENTS_TABLE: !Ref IncidentsTable
         PYTHONPATH: /var/task/src
 
 Resources:
-
+  # ────────────────  API  ────────────────
   ArpemApi:
-    Type: AWS::Serverless::Api
+    Type: AWS::Serverless::Api          # ← v1 (REST) API
     Properties:
       Name: arpem-api
       StageName: Prod
+      # If you’re using Cognito/JWT etc. keep your Auth block here
       Auth:
         DefaultAuthorizer: CognitoAuthorizer
-        AddDefaultAuthorizerToCorsPreflight: false
-        # Authorizers:
-        #   CognitoAuthorizer:
-        #     UserPoolArn: arn:aws:cognito-idp:us-east-1:936115794513:userpool/us-east-1_N8qJG9cXa
+        AddDefaultAuthorizerToCorsPreflight: false   # don’t stick auth on OPTIONS
+      Cors:                                  # ← CORS lives here
+        AllowOrigin: "'http://localhost:3000'"
+        AllowMethods: "'OPTIONS,POST'"
+        AllowHeaders: "'Content-Type'"
+        MaxAge: "'3600'"            # (optional) cache pre-flight 1 h
 
+
+  # ─────────── Lambda function ───────────
   CreateIncident:
     Type: AWS::Serverless::Function
     Properties:
@@ -39,77 +43,13 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ArpemApi
-            Path: /incidents
-            Method: post
+            Path: /incidents_create
+            Method: POST
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref IncidentsTable
 
-
-  GetAllIncidentsFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ../../backend/get_all_incidents/
-      Handler: app.lambda_handler
-      Events:
-        GetAllIncidentsApi:
-          Type: Api
-          Properties:
-            Path: /get-all-incidents
-            Method: get
-            RestApiId: !Ref ArpemApi
-      Policies:
-        - DynamoDBReadPolicy:
-            TableName: IncidentsTable
-      Environment:
-        Variables:
-          INCIDENTS_TABLE: IncidentsTable
-
-  GetIncidentStatusFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ../../backend/get_incident_status/
-      Handler: app.lambda_handler
-      Events:
-        GetIncidentStatusApi:
-          Type: Api
-          Properties:
-            Path: /get-incident-status
-            Method: get
-            RestApiId: !Ref ArpemApi
-      Policies:
-        - DynamoDBReadPolicy:
-            TableName: IncidentsTable
-      Environment:
-        Variables:
-          INCIDENTS_TABLE: IncidentsTable
-
-  GenerateUploadLinkFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ../../backend/upload/
-      Handler: app.lambda_handler
-      Events:
-        UploadApi:
-          Type: Api
-          Properties:
-            Path: /generate-upload-url
-            Method: post
-            RestApiId: !Ref ArpemApi
-            Auth:
-              Authorizer: NONE
-      Policies:
-        - S3CrudPolicy:
-            BucketName: arpem-evidence-bucket
-      Environment:
-        Variables:
-          BUCKET_NAME: arpem-evidence-bucket
-      VpcConfig:
-        SubnetIds:
-          - subnet-0d85d2cf164025957
-        SecurityGroupIds:
-          - sg-08e0f2a7c4ffb1e0f
-
+  # ──────── Data stores etc. ────────
   EvidenceBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -128,22 +68,6 @@ Resources:
       BillingMode: PAY_PER_REQUEST
 
 Outputs:
-  GenerateUploadLinkApiUrl:
-    Description: "API Gateway endpoint URL for /generate-upload-url"
-    Value: !Sub "https://${ArpemApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/generate-upload-url"
-
-  GenerateUploadLinkFunctionArn:
-    Description: "ARN of the generate upload Lambda function"
-    Value: !GetAtt GenerateUploadLinkFunction.Arn
-
-  GetIncidentStatusApiUrl:
-    Description: "API Gateway endpoint URL for /get-incident-status"
-    Value: !Sub "https://${ArpemApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/get-incident-status"
-
-  GetAllIncidentsApiUrl:
-    Description: "API Gateway endpoint URL for /get-all-incidents"
-    Value: !Sub "https://${ArpemApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/get-all-incidents"
-
   CreateIncidentApiUrl:
-    Description: "API Gateway endpoint URL for POST /incidents"
-    Value: !Sub "https://${ArpemApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/incidents"
+    Description: "HTTP API endpoint URL for POST /incidents_create"
+    Value: !Sub "${ArpemApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/incidents_create"
