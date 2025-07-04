@@ -7,6 +7,6 @@ architecture = "x86_64"
 handler = "src/handlers/incidents_create.handler"
 manifest_hash = "91af512cf91da443b542b2abba26de55"
 packagetype = "Zip"
-functions = ["CreateIncident"]
+functions = ["CreateIncident", "GenerateUploadLinkFunction"]
 
 [layer_build_definitions]
