@@ -3,7 +3,7 @@
 import json, os, uuid, boto3
 
 s3 = boto3.client("s3")
-BUCKET = os.environ["UPLOAD_BUCKET_NAME"]   # set in template.yaml
+BUCKET = os.environ["EVIDENCE_BUCKET"]
 
 def handler(event, _context):
     try:
@@ -29,9 +29,14 @@ def handler(event, _context):
         return _resp(400, {"error": str(exc)})
 
 
-def _resp(status: int, body: dict):
+def _resp(code: int, body: dict):
     return {
-        "statusCode": status,
-        "headers": {"Access-Control-Allow-Origin": "*"},
+        "statusCode": code,
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type,Authorization",
+            "Access-Control-Allow-Methods": "OPTIONS,POST",
+        },
         "body": json.dumps(body),
     }

@@ -14,8 +14,6 @@ const navItems = [
   { name: "Dashboard", icon: LayoutDashboard, href: "#", id: "dashboard" },
   { name: "Reports", icon: FileText, href: "#", id: "reports" },
   { name: "Add Request", icon: PlusSquare, href: "/", id: "add_request" },
-  { name: "Rankings", icon: BarChart3, href: "#", id: "rankings" },
-  { name: "Upgrade to Premium", icon: Zap, href: "#", id: "upgrade" },
   { name: "Log Off", icon: LogOut, href: "#", id: "logoff" },
 ]
 

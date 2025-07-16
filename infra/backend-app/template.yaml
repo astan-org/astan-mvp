@@ -13,21 +13,20 @@ Globals:
         PYTHONPATH: /var/task/src
 
 Resources:
-  # ────────────────  API  ────────────────
+# ────────────────  API  ────────────────
   ArpemApi:
     Type: AWS::Serverless::Api
     Properties:
       Name: arpem-api
       StageName: Prod
       Auth:
-        DefaultAuthorizer: CognitoAuthorizer
+        DefaultAuthorizer: NONE
         AddDefaultAuthorizerToCorsPreflight: false
       Cors:
         AllowOrigin: "'http://localhost:3000'"
-        AllowMethods: "'OPTIONS,POST'"
-        AllowHeaders: "'Content-Type'"
+        AllowMethods: "'POST,OPTIONS,PATCH'"
+        AllowHeaders: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
         MaxAge: "'3600'"
-
 
   # ─────────── Create Incident Lambda function ───────────
   CreateIncident:
@@ -38,7 +37,7 @@ Resources:
       MemorySize: 256
       Timeout: 15
       Events:
-        CreateIncidentApi:
+        CreateIncidentApiPost:
           Type: Api
           Properties:
             RestApiId: !Ref ArpemApi
@@ -48,11 +47,34 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref IncidentsTable
 
+  # ─────────── Finalize Incident Lambda function ───────────
+  FinalizeIncident:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler  : src/handlers/incidents_finalize.handler
+      CodeUri  : ../../backend
+      MemorySize: 256
+      Timeout  : 10
+      Environment:
+        Variables:
+          INCIDENTS_TABLE: !Ref IncidentsTable
+          HMAC_SECRET    : "super-secret"
+      Events:
+        VerifyIncidentApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ArpemApi
+            Path     : /incidents/{id}/verify
+            Method   : PATCH
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref IncidentsTable
+
   # ─────────── Generate Upload Link Lambda function ───────────
   GenerateUploadLinkFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/handlers/upload_generate_url.handler
+      Handler: src/handlers/generate_upload_url.handler
       CodeUri: ../../backend
       MemorySize: 256
       Timeout: 10
@@ -70,6 +92,25 @@ Resources:
         - S3WritePolicy:
             BucketName: !Ref EvidenceBucket
 
+  # ─────────── Fetch ALL User Incidents ───────────
+  FetchUserIncidents:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/incidents_user.handler
+      CodeUri: ../../backend
+      MemorySize: 256
+      Timeout: 10
+      Events:
+        GetUserIncidentsApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ArpemApi
+            Path: /user-incidents
+            Method: GET
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref IncidentsTable
+
 
   # ──────── Data stores etc. ────────
   EvidenceBucket:
@@ -84,10 +125,19 @@ Resources:
       AttributeDefinitions:
         - AttributeName: incidentId
           AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
       KeySchema:
         - AttributeName: incidentId
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: userId-index
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
 
 Outputs:
   CreateIncidentApiUrl:

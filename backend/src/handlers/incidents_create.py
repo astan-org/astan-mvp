@@ -3,6 +3,17 @@ import json
 from uuid import uuid4
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any, Literal
+from jose import jwt
+import urllib.request
+
+REGION = "us-east-1"
+USER_POOL_ID = "us-east-1_eC0YPqY93"
+CLIENT_ID = "51nedkfr5lb3odi1obfdi0n6vj"
+
+def get_cognito_jwk():
+    url = f"https://cognito-idp.{REGION}.amazonaws.com/{USER_POOL_ID}/.well-known/jwks.json"
+    with urllib.request.urlopen(url) as f:
+        return json.load(f)["keys"]
 
 from pydantic import (
     BaseModel,
@@ -132,6 +143,27 @@ class IncidentDraft(BaseModel):
 # Lambda handler
 # --------------------------------------------------------------------- #
 def handler(event, _):
+    # Step 1: Extract Authorization header
+    auth_header = event.get("headers", {}).get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return _resp(401, {"error": "Missing or invalid Authorization header"})
+
+    token = auth_header.split(" ")[1]  # remove "Bearer "
+
+    # Step 2: Decode JWT using Cognito JWKs
+    try:
+        jwks = get_cognito_jwk()
+        headers = jwt.get_unverified_headers(token)
+        kid = headers["kid"]
+        key = next(k for k in jwks if k["kid"] == kid)
+
+        claims = jwt.decode(token, key, algorithms=["RS256"], audience=CLIENT_ID)
+        user_id = claims["sub"]
+        user_email = claims.get("email")
+    except Exception as e:
+        return _resp(401, {"error": f"Token validation failed: {str(e)}"})
+
+    # Step 3: Parse and validate request body
     try:
         body: Dict[str, Any] = json.loads(event.get("body") or "{}")
     except json.JSONDecodeError:
@@ -142,7 +174,7 @@ def handler(event, _):
     except ValidationError as err:
         return _resp(400, {"error": [str(e) for e in err.errors()]})
 
-    # ─── Build Dynamo item ────────────────────────────────────────────
+    # Step 4: Build DynamoDB item
     incident_id = str(uuid4())
     now = datetime.now(timezone.utc).isoformat()
 
@@ -150,6 +182,8 @@ def handler(event, _):
         "firstName": draft.firstName,
         "lastName": draft.lastName,
         "emailAddress": draft.emailAddress,
+        "userId": user_id,         # <-- link to Cognito user
+        "userEmail": user_email    # <-- optional from token
     }
 
     incident_block = {
@@ -163,18 +197,15 @@ def handler(event, _):
         "typeOfSupportProvided": draft.typeOfSupportProvided,
         "platformForDynamicQuestions": draft.platformForDynamicQuestions,
         "affectedPlatforms": [p.model_dump() for p in draft.affectedPlatforms],
-        "platformsSummary": extract_platforms([p.model_dump()
-                                            for p in draft.affectedPlatforms]),
+        "platformsSummary": extract_platforms([p.model_dump() for p in draft.affectedPlatforms]),
         "hackedElsewhere": draft.hackedElsewhere,
         "hackedElsewhereDetails": draft.hackedElsewhereDetails,
         "crossPlatformDetails": draft.crossPlatformDetails,
     }
 
-    # evidence URLs (if pre-uploaded by FE)
     if draft.evidenceUrls:
         incident_block["evidenceUrls"] = draft.evidenceUrls
 
-    # all extra dynamic Q answers
     dynamic_extras = {k: v for k, v in body.items() if k not in draft.model_fields}
     if dynamic_extras:
         incident_block["dynamicExtras"] = dynamic_extras
@@ -185,7 +216,7 @@ def handler(event, _):
         "createdAt": now,
         "userBlock": user_block,
         "incidentBlock": incident_block,
-        "evidenceMeta": {},  # populated after file uploads
+        "evidenceMeta": {},
         "raw": body,
     }
 
@@ -202,6 +233,9 @@ def _resp(code: int, body: dict):
         "headers": {
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type,Authorization",
+            "Access-Control-Allow-Methods": "OPTIONS,POST",
         },
         "body": json.dumps(body),
     }
+

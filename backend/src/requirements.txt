@@ -3,3 +3,4 @@ pydantic
 boto3
 pydantic[email]
 email-validator
+python-jose
